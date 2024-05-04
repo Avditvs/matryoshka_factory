@@ -31,8 +31,8 @@ logging.basicConfig(
 #### /print debug information to stdout
 
 model_name = "intfloat/multilingual-e5-small"
-train_batch_size = 32  # The larger you select this, the better the results (usually). But it requires more GPU memory
-max_seq_length = 512
+train_batch_size = 64  # The larger you select this, the better the results (usually). But it requires more GPU memory
+max_seq_length = 256
 num_epochs = 1
 
 # Save path of the model
@@ -91,6 +91,8 @@ for sent1, others in train_data.items():
             )
         )
 
+train_samples = train_samples[:100_000]
+
 logging.info("Train samples: {}".format(len(train_samples)))
 
 
@@ -135,7 +137,8 @@ model.fit(
     evaluation_steps=int(len(train_dataloader) * 0.1),
     warmup_steps=warmup_steps,
     output_path=model_save_path,
-    use_amp=False,  # Set to True, if your GPU supports FP16 operations
+    use_amp=True,  # Set to True, if your GPU supports FP16 operations
+    evaluation_steps=512,
 )
 
 
@@ -153,8 +156,23 @@ with gzip.open(sts_dataset_path, "rt", encoding="utf8") as fIn:
             score = float(row["score"]) / 5.0  # Normalize score to range 0 ... 1
             test_samples.append(InputExample(texts=[row["sentence1"], row["sentence2"]], label=score))
 
+
+logging.info("Full size model evaluation")
 model = SentenceTransformer(model_save_path)
 test_evaluator = EmbeddingSimilarityEvaluator.from_input_examples(
     test_samples, batch_size=train_batch_size, name="sts-test"
 )
+test_evaluator(model, output_path=model_save_path)
+
+layers = 4
+logging.info(f"Evaluation with and {layers} layers")
+
+model = SentenceTransformer(model_save_path)
+model[0].auto_model.encoder.layer = model[0].auto_model.encoder.layer[:layers]
+
+test_evaluator = EmbeddingSimilarityEvaluator.from_input_examples(
+    test_samples, batch_size=train_batch_size, name="sts-test"
+)   
+
+
 test_evaluator(model, output_path=model_save_path)
