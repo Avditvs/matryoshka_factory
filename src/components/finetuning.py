@@ -1,4 +1,5 @@
 """Class for distilling a model into a matryoshka model."""
+
 from dataclasses import dataclass
 
 import torch
@@ -6,7 +7,7 @@ import torch.nn as nn
 import transformers
 from sentence_transformers import SentenceTransformer
 
-from matryoshka import MatryoshkaLoss
+from .matryoshka import MatryoshkaLoss
 
 
 @dataclass
@@ -87,8 +88,9 @@ class MatryoshkaTrainer:
                 with torch.autocast(
                     training_args.device_type, enabled=training_args.use_amp
                 ):
+
                     input_tokens = [
-                        self.model.tokenize(sub_batch)
+                        {k: v.to(self.model.device) for k, v in sub_batch.items()}
                         for sub_batch in original_sentences
                     ]
                     outputs_student = [
