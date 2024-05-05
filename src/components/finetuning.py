@@ -88,10 +88,13 @@ class MatryoshkaTrainer:
                 with torch.autocast(
                     training_args.device_type, enabled=training_args.use_amp
                 ):
+                    input_tokens = [
+                        self.model.tokenize(sub_batch)
+                        for sub_batch in original_sentences
+                    ]
 
                     input_tokens = [
-                        {k: v.to(self.model.device) for k, v in sub_batch.items()}
-                        for sub_batch in original_sentences
+                        {k: v.to(self.model.device) for k, v in sub_batch.items()} for sub_batch in original_sentences
                     ]
                     outputs_student = [
                         self.model(i)["sentence_embedding"] for i in input_tokens
