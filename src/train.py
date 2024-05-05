@@ -2,8 +2,8 @@ from sentence_transformers import SentenceTransformer
 
 from torch.utils.data import DataLoader
 from datasets import load_dataset
-from data import ParallelSentencesDataset
-from finetuning import MatryoshkaTrainer, TrainingArguments
+from components.data import ParallelSentencesDataset
+from components.finetuning import MatryoshkaTrainer, TrainingArguments
 
 
 teacher_model_name = "intfloat/multilingual-e5-small"

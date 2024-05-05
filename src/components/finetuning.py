@@ -1,8 +1,4 @@
 """Class for distilling a model into a matryoshka model."""
-
-import IPython
-
-
 from dataclasses import dataclass
 
 import torch
@@ -17,8 +13,8 @@ from matryoshka import MatryoshkaLoss
 class TrainingArguments:
     train_dataloader: torch.utils.data.DataLoader
     train_loss: nn.Module = nn.CosineSimilarity()
-    num_epochs: int = 5
-    model_save_path: str = "matryoshka_model"
+    num_epochs: int = 10
+    model_save_path: str = "matryoshka_model_2"
     warmup_steps: int = 100
     train_batch_size: int = 32
     lr: float = 1e-5
@@ -26,8 +22,9 @@ class TrainingArguments:
     adam_epsilon: float = 1e-8
     max_grad_norm: float = 10
     save_steps: int = 1000
-    matryoshka_dims: tuple[int] = (384, 256, 128, 96, 64, 32)
+    matryoshka_dims: tuple[int] = (384, 256, 192, 128, 96, 64, 48, 32)
     use_amp: bool = False
+    device_type: str = "cuda"
 
 
 class MatryoshkaTrainer:
@@ -48,6 +45,8 @@ class MatryoshkaTrainer:
             num_training_steps=len(training_args.train_dataloader)
             * training_args.num_epochs,
         )
+
+        self.scaler = torch.GradScaler()
 
     def prepare_optimizer(
         self, training_args: TrainingArguments
@@ -77,6 +76,7 @@ class MatryoshkaTrainer:
         )
 
     def fit(self, training_args: TrainingArguments):
+        total_steps = 0
         for epoch in range(training_args.num_epochs):
             self.model.train()
             for step, (original_sentences, original_embeddings) in enumerate(
@@ -84,52 +84,67 @@ class MatryoshkaTrainer:
             ):
                 self.optimizer.zero_grad()
 
-                input_tokens = [
-                    self.model.tokenize(sub_batch) for sub_batch in original_sentences
-                ]
-                outputs_student = [
-                    self.model(i)["sentence_embedding"] for i in input_tokens
-                ]
-
-                student_similarities = self.matroyshka_loss(
-                    outputs_student, no_sum=True
-                )
-
-                teacher_similarities = [
-                    training_args.train_loss(
-                        original_embeddings[0], original_embeddings[1]
-                    )
-                ] * len(student_similarities)
-
-                weights = self.matroyshka_loss.matryoshka_weights
-                l0 = self.final_loss(student_similarities[0], teacher_similarities[0])
-                loss = l0 * weights[0]
-
-                losses = [l0]
-                for w, student_sim, teacher_sim in zip(
-                    self.matroyshka_loss.matryoshka_weights[1:],
-                    student_similarities[1:],
-                    teacher_similarities[1:],
+                with torch.autocast(
+                    training_args.device_type, enabled=training_args.use_amp
                 ):
-                    l = self.final_loss(student_sim, teacher_sim)
-                    loss += l * w
-                    losses.append(l.item())
+                    input_tokens = [
+                        self.model.tokenize(sub_batch)
+                        for sub_batch in original_sentences
+                    ]
+                    outputs_student = [
+                        self.model(i)["sentence_embedding"] for i in input_tokens
+                    ]
 
-                loss /= len(weights)
-                loss.backward()
+                    student_similarities = self.matroyshka_loss(
+                        outputs_student, no_sum=True
+                    )
+
+                    teacher_similarities = [
+                        training_args.train_loss(
+                            original_embeddings[0], original_embeddings[1]
+                        )
+                    ] * len(student_similarities)
+
+                    weights = self.matroyshka_loss.matryoshka_weights
+                    l0 = self.final_loss(
+                        student_similarities[0], teacher_similarities[0]
+                    )
+                    loss = l0 * weights[0]
+
+                    losses = [l0]
+                    for w, student_sim, teacher_sim in zip(
+                        self.matroyshka_loss.matryoshka_weights[1:],
+                        student_similarities[1:],
+                        teacher_similarities[1:],
+                    ):
+                        l = self.final_loss(student_sim, teacher_sim)
+                        loss += l * w
+                        losses.append(l.item())
+
+                    loss /= len(weights)
+
+                self.scaler.scale(loss).backward()
+
+                self.scaler.unscale_(self.optimizer)
+
                 torch.nn.utils.clip_grad_norm_(
                     self.model.parameters(), training_args.max_grad_norm
                 )
-                self.optimizer.step()
+                self.scaler.step(self.optimizer)
                 self.scheduler.step()
 
-                if step % training_args.save_steps == 0:
+                self.scaler.update()
+
+                if total_steps % training_args.save_steps == 0:
                     self.model.save(training_args.model_save_path)
                 displayed_losses = {
                     d: l for d, l in zip(self.matroyshka_loss.matryoshka_dims, losses)
                 }
+
+                total_steps += 1
+
                 print(
-                    f"Epoch: {epoch}, Step: {step}, Loss: {loss.item()}, lr: {self.scheduler.get_last_lr()[0]}"
+                    f"Epoch: {total_steps/len(training_args.train_dataloader)}, Step: {total_steps}, Loss: {loss.item()}, lr: {self.scheduler.get_last_lr()[0]}"
                 )
                 for k, v in displayed_losses.items():
                     # print with alined numeric anddecimal points

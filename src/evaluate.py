@@ -56,7 +56,7 @@ def main(args: Namespace) -> None:
         task_types=args.task_types,
     )
 
-    output_model_folder = f"{args.model_name.replace('/', '_')}-{num_layers}-{num_dims}"
+    output_model_folder = f"{args.model_name.replace('.', '').strip('/').replace('/', '_')}-{num_layers}-{num_dims}"
     output_folder = os.path.join(args.output_folder, output_model_folder)
 
     evaluation.run(
