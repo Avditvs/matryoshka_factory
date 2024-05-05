@@ -94,7 +94,7 @@ class MatryoshkaTrainer:
                     ]
 
                     input_tokens = [
-                        {k: v.to(self.model.device) for k, v in sub_batch.items()} for sub_batch in original_sentences
+                        {k: v.to(self.model.device) for k, v in sub_batch.items()} for sub_batch in input_tokens
                     ]
                     outputs_student = [
                         self.model(i)["sentence_embedding"] for i in input_tokens
