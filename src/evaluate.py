@@ -1,3 +1,4 @@
+import os
 from argparse import ArgumentParser, Namespace
 
 from mteb import MTEB
@@ -55,9 +56,13 @@ def main(args: Namespace) -> None:
         task_types=args.task_types,
     )
 
+    output_model_folder = f"args.model_name.replace('/', '_')-{num_layers}-{num_dims}"
+    output_folder = os.path.join(args.output_folder, output_model_folder)
+
     evaluation.run(
+        verbosity=2,
         model=model,
-        output_folder=f"results/{args.model_name}-{num_layers}-{num_dims}",
+        output_folder=output_folder,
     )
 
 
