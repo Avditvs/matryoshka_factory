@@ -115,6 +115,7 @@ class MatryoshkaTrainer:
                     loss += l * w
                     losses.append(l.item())
 
+                loss /= len(weights)
                 loss.backward()
                 torch.nn.utils.clip_grad_norm_(
                     self.model.parameters(), training_args.max_grad_norm
