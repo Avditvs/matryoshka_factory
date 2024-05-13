@@ -54,6 +54,7 @@ def main(args: Namespace) -> None:
     evaluation = MTEB(
         task_langs=langs,
         task_types=args.task_types,
+        tasks = args.tasks
     )
 
     output_model_folder = f"{args.model_name.replace('.', '').strip('/').replace('/', '_')}-{num_layers}-{num_dims}"
@@ -63,6 +64,7 @@ def main(args: Namespace) -> None:
         verbosity=2,
         model=model,
         output_folder=output_folder,
+        eval_splits = ["test"],
     )
 
 
@@ -71,6 +73,7 @@ if __name__ == "__main__":
     parser.add_argument("--model-name", type=str, required=True)
     parser.add_argument("--output-folder", type=str, required=True)
     parser.add_argument("--task-types", type=str, nargs="+", default=None)
+    parser.add_argument("--tasks", type=str, nargs="+", default=None)
     parser.add_argument("--multilingual", action="store_true")
     parser.add_argument("--langs", type=str, nargs="+", default=None)
     parser.add_argument("--num-dims", type=int, default=-1)

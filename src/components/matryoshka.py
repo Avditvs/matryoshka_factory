@@ -1,4 +1,5 @@
 import torch.nn as nn
+import torch.nn.functional as F
 
 
 class MatryoshkaLoss(nn.Module):
@@ -35,7 +36,9 @@ class MatryoshkaLoss(nn.Module):
     def forward(self, features, no_sum=False):
         losses = []
         for dim in self.matryoshka_dims:
-            losses.append(self.original_loss(features[0][:, :dim], features[1][:, :dim]))
+            l = self.original_loss(features[0][:, :dim], features[1][:, :dim])
+            l = F.normalize(l, p=2, dim=-1)
+            losses.append(l)
 
         if no_sum:
             return losses
