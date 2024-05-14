@@ -1,7 +1,8 @@
 import os
 from argparse import ArgumentParser, Namespace
+from typing import Dict, List
 
-from mteb import MTEB
+from mteb import MTEB, DRESModel
 from sentence_transformers import SentenceTransformer
 
 
@@ -19,6 +20,7 @@ def prepare_model(
         prompts = None
 
     model = SentenceTransformer(model_name, prompts=prompts)
+    model.max_seq_length = 512
 
     # Set number of layers for matryoshka 2D model
     max_num_layers = len(model[0].auto_model.encoder.layer)
@@ -38,7 +40,38 @@ def prepare_model(
     num_dims = min(num_dims, max_model_dims) if num_dims > 0 else max_model_dims
     model.truncate_dim = num_dims
 
-    return model, num_layers, num_dims
+    return Model(model), num_layers, num_dims
+
+
+class Model(DRESModel):
+    def __init__(self, model: SentenceTransformer):
+        self.model = model
+        self.encode = self.model.encode
+
+    def encode_corpus(self, corpus: List[Dict[str, str]], batch_size: int, **kwargs):
+        if type(corpus) is dict:
+            sentences = [
+                (
+                    ("passage: " + corpus["title"][i] + " " + corpus["text"][i]).strip()
+                    if "title" in corpus
+                    else corpus["text"][i].strip()
+                )
+                for i in range(len(corpus["text"]))
+            ]
+        else:
+            sentences = [
+                (
+                    ("passage: " + doc["title"] + " " + doc["text"]).strip()
+                    if "title" in doc
+                    else "passage: " + doc["text"].strip()
+                )
+                for doc in corpus
+            ]
+        return self.model.encode(sentences, batch_size=batch_size, **kwargs)
+
+    def encode_queries(self, queries: List[str], batch_size: int, **kwargs):
+        queries = [f"query: {query}" for query in queries]
+        return self.model.encode(queries, batch_size=batch_size, **kwargs)
 
 
 def main(args: Namespace) -> None:
@@ -51,11 +84,7 @@ def main(args: Namespace) -> None:
     else:
         langs = args.langs
 
-    evaluation = MTEB(
-        task_langs=langs,
-        task_types=args.task_types,
-        tasks = args.tasks
-    )
+    evaluation = MTEB(task_langs=langs, task_types=args.task_types, tasks=args.tasks)
 
     output_model_folder = f"{args.model_name.replace('.', '').strip('/').replace('/', '_')}-{num_layers}-{num_dims}"
     output_folder = os.path.join(args.output_folder, output_model_folder)
@@ -64,7 +93,7 @@ def main(args: Namespace) -> None:
         verbosity=2,
         model=model,
         output_folder=output_folder,
-        eval_splits = ["test"],
+        eval_splits=["test"],
     )
 
 

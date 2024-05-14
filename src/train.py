@@ -1,11 +1,9 @@
 from sentence_transformers import SentenceTransformer
 
-from torch.utils.data import DataLoader
-
 from components.data import ParallelSentencesDataset
 from components.finetuning import MatryoshkaTrainer, TrainingArguments
 
-from datasets_classes import STSBDataset, MrTyDiDataset
+from datasets_classes import STSBDataset, MrTyDiDataset, QuoraDataset
 
 max_seq_len = 128
 
@@ -22,9 +20,21 @@ output_name = student_model_name.replace("/", "-")
 
 sentences_pairs = []
 stsbd = STSBDataset()
-sentences_pairs.extend(stsbd.get_sentence_pairs())
+stsbd_pairs = stsbd.get_sentence_pairs()
+print(f"Number of STSB pairs: {len(stsbd_pairs)}")
+sentences_pairs.extend(stsbd_pairs)
 mrtydi = MrTyDiDataset()
-sentences_pairs.extend(mrtydi.get_sentence_pairs(limit_examples=1))
+mrtydi_pairs = mrtydi.get_sentence_pairs(
+    limit_examples=3, num_negatives=2, num_positives=2
+)
+print(f"Number of MrTyDi pairs: {len(mrtydi_pairs)}")
+sentences_pairs.extend(mrtydi_pairs)
+quora = QuoraDataset()
+quora_pairs = quora.get_sentence_pairs(sample_rate=0.5)
+print(f"Number of Quora pairs: {len(quora_pairs)}")
+sentences_pairs.extend(quora_pairs)
+
+print(f"Total number of sentence pairs: {len(sentences_pairs)}")
 
 
 parallel_dataset = ParallelSentencesDataset(
