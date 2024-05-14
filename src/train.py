@@ -31,17 +31,15 @@ parallel_dataset = ParallelSentencesDataset(
     teacher_model, sentences_pairs, inference_batch_size=64
 )
 
-train_dataloader = DataLoader(parallel_dataset, shuffle=True, batch_size=512)
-
 iteration = 0
 
 args = TrainingArguments(
-    train_dataloader=train_dataloader,
     save_steps=100,
-    train_batch_size=512,
+    per_device_batch_size=512,
+    gradient_accumulation_steps=1,
     use_amp=True,
     lr=3e-5,
-    model_save_path=f"{output_name}-matryoshka-datasets-{iteration}",
+    model_save_path=f"models/{output_name}-matryoshka-datasets-{iteration}",
     matryoshka_dims=(384, 256, 192, 128, 64, 32),
     num_epochs=20,
     warmup_steps=256,
@@ -50,4 +48,4 @@ args = TrainingArguments(
 args.model_name = student_model_name
 
 trainer = MatryoshkaTrainer(student_model, args)
-trainer.fit(args)
+trainer.fit(args, parallel_dataset)
