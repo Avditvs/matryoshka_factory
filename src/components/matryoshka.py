@@ -37,7 +37,6 @@ class MatryoshkaLoss(nn.Module):
         losses = []
         for dim in self.matryoshka_dims:
             l = self.original_loss(features[0][:, :dim], features[1][:, :dim])
-            l = F.normalize(l, p=2, dim=-1)
             losses.append(l)
 
         if no_sum:

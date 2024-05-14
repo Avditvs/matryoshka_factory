@@ -1,42 +1,48 @@
 from sentence_transformers import SentenceTransformer
 
 from torch.utils.data import DataLoader
-import datasets
-from datasets import load_dataset
+
 from components.data import ParallelSentencesDataset
 from components.finetuning import MatryoshkaTrainer, TrainingArguments
 
+from datasets_classes import STSBDataset, MrTyDiDataset
+
+max_seq_len = 128
 
 teacher_model_name = "intfloat/multilingual-e5-small"
 teacher_model = SentenceTransformer(teacher_model_name)
+teacher_model.max_seq_length = max_seq_len
 
 student_model_name = "intfloat/multilingual-e5-small"
 student_model = SentenceTransformer(student_model_name)
+student_model.max_seq_length = max_seq_len
 
 output_name = student_model_name.replace("/", "-")
 
 
-configs = ['de', 'en', 'es', 'fr', 'it', 'nl', 'pl', 'pt', 'ru', 'zh']
+sentences_pairs = []
+stsbd = STSBDataset()
+sentences_pairs.extend(stsbd.get_sentence_pairs())
+mrtydi = MrTyDiDataset()
+sentences_pairs.extend(mrtydi.get_sentence_pairs(limit_examples=1))
 
-ds = [load_dataset("stsb_multi_mt", c, split='train') for c in configs]
 
-dataset = datasets.concatenate_datasets(ds)
+parallel_dataset = ParallelSentencesDataset(
+    teacher_model, sentences_pairs, inference_batch_size=64
+)
 
-sentences_pairs = [(example["sentence1"], example["sentence2"]) for example in dataset]
-parallel_dataset = ParallelSentencesDataset(teacher_model, sentences_pairs, inference_batch_size=32)
+train_dataloader = DataLoader(parallel_dataset, shuffle=True, batch_size=512)
 
-train_dataloader = DataLoader(parallel_dataset, shuffle=True, batch_size=256)
-
-iteration = 3
+iteration = 0
 
 args = TrainingArguments(
     train_dataloader=train_dataloader,
     save_steps=100,
-    train_batch_size=256,
+    train_batch_size=512,
     use_amp=True,
-    lr=1e-5,
-    model_save_path = f"{output_name}-matryoshka-passage-{iteration}",
-    matryoshka_dims = (384, 256, 192, 128, 64, 32, 16, 8),
+    lr=3e-5,
+    model_save_path=f"{output_name}-matryoshka-datasets-{iteration}",
+    matryoshka_dims=(384, 256, 192, 128, 64, 32),
     num_epochs=20,
     warmup_steps=256,
 )
