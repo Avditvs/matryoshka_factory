@@ -94,6 +94,7 @@ def main(args: Namespace) -> None:
         model=model,
         output_folder=output_folder,
         eval_splits=["test"],
+        overwrite_results=True,
     )
 
 
