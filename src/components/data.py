@@ -46,7 +46,7 @@ class ParallelSentencesDataset(Dataset):
         )
 
         for a, b in zip(a_embeddings, b_embeddings):
-            self.cache.append((a, b))
+            self.cache.append((a.cpu(), b.cpu()))
 
     def __getitem__(self, idx):
         if len(self.cache) == 0:

@@ -1,3 +1,4 @@
+import torch
 from sentence_transformers import SentenceTransformer
 
 from components.data import ParallelSentencesDataset
@@ -17,6 +18,11 @@ student_model.max_seq_length = max_seq_len
 
 output_name = student_model_name.replace("/", "-")
 
+cuda_devices = torch.cuda.device_count()
+if cuda_devices > 1:
+    student_model[0].auto_model.encoder = torch.nn.DataParallel(student_model[0].auto_model.encoder)
+    teacher_model[0].auto_model.encoder = torch.nn.DataParallel(teacher_model[0].auto_model.encoder)
+
 
 sentences_pairs = []
 stsbd = STSBDataset()
@@ -25,12 +31,12 @@ print(f"Number of STSB pairs: {len(stsbd_pairs)}")
 sentences_pairs.extend(stsbd_pairs)
 mrtydi = MrTyDiDataset()
 mrtydi_pairs = mrtydi.get_sentence_pairs(
-    limit_examples=3, num_negatives=2, num_positives=2
+    limit_examples=5, num_negatives=5, num_positives=5
 )
 print(f"Number of MrTyDi pairs: {len(mrtydi_pairs)}")
 sentences_pairs.extend(mrtydi_pairs)
 quora = QuoraDataset()
-quora_pairs = quora.get_sentence_pairs(sample_rate=0.5)
+quora_pairs = quora.get_sentence_pairs(sample_rate=0.25)
 print(f"Number of Quora pairs: {len(quora_pairs)}")
 sentences_pairs.extend(quora_pairs)
 
@@ -38,10 +44,11 @@ print(f"Total number of sentence pairs: {len(sentences_pairs)}")
 
 
 parallel_dataset = ParallelSentencesDataset(
-    teacher_model, sentences_pairs, inference_batch_size=64
+    teacher_model, sentences_pairs, inference_batch_size=512
 )
 
 iteration = 0
+
 
 args = TrainingArguments(
     save_steps=100,
@@ -49,10 +56,10 @@ args = TrainingArguments(
     gradient_accumulation_steps=1,
     use_amp=True,
     lr=3e-5,
-    model_save_path=f"models/{output_name}-matryoshka-datasets-{iteration}",
+    model_save_path=f"models/{output_name}-multi-datasets-{iteration}",
     matryoshka_dims=(384, 256, 192, 128, 64, 32),
     num_epochs=20,
-    warmup_steps=256,
+    warmup_steps=512,
 )
 
 args.model_name = student_model_name

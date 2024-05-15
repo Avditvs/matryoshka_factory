@@ -111,6 +111,9 @@ class MatryoshkaTrainer:
                             {k: v.to(self.model.device) for k, v in sub_batch.items()}
                             for sub_batch in input_tokens
                         ]
+
+                        original_embeddings = [e.to(self.model.device) for e in original_embeddings]
+
                         outputs_student = [
                             self.model(i)["sentence_embedding"] for i in input_tokens
                         ]
@@ -145,7 +148,7 @@ class MatryoshkaTrainer:
 
                     self.scaler.scale(loss).backward()
 
-                    if (step + 1) % training_args.gradient_accumulation_steps == 0:
+                    if (total_steps + 1) % training_args.gradient_accumulation_steps == 0:
                         self.scaler.unscale_(self.optimizer)
 
                         torch.nn.utils.clip_grad_norm_(
