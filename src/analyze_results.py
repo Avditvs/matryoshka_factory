@@ -17,10 +17,22 @@ MAIN_METRICS = {
     "STS22": (["test", "en", "cos_sim", "pearson"], "STS"),
     "STSBenchmark": (["test", "cos_sim", "pearson"], "STS"),
     "ArguAna": (["test", "ndcg_at_10"], "Retrieval"),
+    "AmazonReviewsClassification": (["test", "en", "accuracy"], "Classification"),
+    "ArxivClassification": (["test", "accuracy"], "Classification"),
+    "AskUbuntuDupQuestions": (["test", "map"], "Reranking"),
+    "Banking77Classification": (["test", "accuracy"], "Classification"),
+    "ImdbClassification": (["test", "accuracy"], "Classification"),
+    "MedicalQARetrieval": (["test", "ndcg_at_10"], "Retrieval"),
+    "MovieReviewSentimentClassification": (["test", "accuracy"], "Classification"),
+    "StackOverflowDupQuestions": (["test", "map"], "Reranking"),
 }
 
 
-def analyze(path: str, filter_task_types:list[str] | None = None, filter_tasks: list[str] | None = None) -> None:
+def analyze(
+    path: str,
+    filter_task_types: list[str] | None = None,
+    filter_tasks: list[str] | None = None,
+) -> None:
     results = []
     for file in glob.glob(f"{path}/*.json"):
         with open(file, "r") as f:
@@ -43,7 +55,6 @@ def analyze(path: str, filter_task_types:list[str] | None = None, filter_tasks: 
         score = tmp
         scores[task_name] = score
 
-
     average = sum(scores.values()) / len(scores)
     scores["average"] = average
     return scores
@@ -64,8 +75,8 @@ def main(args: Namespace) -> None:
 if __name__ == "__main__":
     parser = ArgumentParser()
     parser.add_argument("--eval-results-path", nargs="+", type=str, required=True)
-    parser.add_argument("--filter-task-types", type=str, nargs = "+", default=None)
-    parser.add_argument("--filter-tasks", type=str, nargs = "+", default=None)
+    parser.add_argument("--filter-task-types", type=str, nargs="+", default=None)
+    parser.add_argument("--filter-tasks", type=str, nargs="+", default=None)
     parser.add_argument("--output-folder", type=str, required=True)
 
     args = parser.parse_args()

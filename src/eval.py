@@ -103,7 +103,32 @@ if __name__ == "__main__":
     parser.add_argument("--model-name", type=str, required=True)
     parser.add_argument("--output-folder", type=str, required=True)
     parser.add_argument("--task-types", type=str, nargs="+", default=None)
-    parser.add_argument("--tasks", type=str, nargs="+", default=None)
+    parser.add_argument(
+        "--tasks",
+        type=str,
+        nargs="+",
+        default=[
+            "BIOSSES",
+            "SICK-R",
+            "STS12",
+            "STS13",
+            "STS14",
+            "STS15",
+            "STS16",
+            "STS17",
+            "STS22",
+            "STSBenchmark",
+            "ArguAna",
+            "AmazonReviewsClassification",
+            "ArxivClassification",
+            "AskUbuntuDupQuestions",
+            "Banking77Classification",
+            "ImdbClassification",
+            "MedicalQARetrieval",
+            "MovieReviewSentimentClassification",
+            "StackOverflowDupQuestions",
+        ],
+    )
     parser.add_argument("--multilingual", action="store_true")
     parser.add_argument("--langs", type=str, nargs="+", default=None)
     parser.add_argument("--num-dims", type=int, default=-1)
